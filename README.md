@@ -161,7 +161,7 @@ To check that the streaming processor really recovers from a crash, it was stopp
 - `README_PYSPARK.md` : Documentation for the PySpark processing stage.
 
 ## Future work:
-- Windowed / time-based aggregations (hourly / daily stock summaries).
+- Longer-timescale rollups (hourly / daily / weekly stock summaries) on top of the existing event-time window aggregation.
 - Kafka integration for production-grade streaming.
 - Alert triggers for anomalies (e.g. sustained high latency, low stock / empty shelves).
 - Integration with a live dashboard.
