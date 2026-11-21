@@ -1,0 +1,11 @@
+sweep_tag,cores,batch_size,window,total_rows,num_batches,proc_time_s,throughput_rows_s,avg_latency_ms,p95_latency_ms,wall_s
+batch,4,5,10 seconds,300,60,9.29,32.3,154.8,214.0,9.72
+batch,4,10,10 seconds,300,30,5.305,56.6,176.8,276.0,5.58
+batch,4,20,10 seconds,300,15,3.39,88.5,226.0,215.0,3.71
+batch,4,50,10 seconds,300,6,2.764,108.5,460.7,1302.0,3.05
+cores,1,20,10 seconds,300,15,2.97,101.0,198.0,197.0,3.25
+cores,2,20,10 seconds,300,15,3.202,93.7,213.5,205.0,3.53
+cores,4,20,10 seconds,300,15,3.377,88.8,225.1,241.0,3.7
+window,4,20,5 seconds,300,15,3.418,87.8,227.9,225.0,3.74
+window,4,20,10 seconds,300,15,3.367,89.1,224.5,229.0,3.67
+window,4,20,30 seconds,300,15,3.554,84.4,236.9,243.0,4.09

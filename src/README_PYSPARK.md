@@ -10,25 +10,25 @@ end-to-end latency.
 - **Real-time data ingestion** from JSON detection files
 - **Micro-batch / batch processing**
 - **Basic metrics** (detection counts, average confidence, unique products)
-- **End-to-end latency** per batch (detection timestamp → processing time)
+- **End-to-end latency** per batch (detection timestamp to processing time)
 - **Checkpointing / fault tolerance** (streaming processor resumes after a crash)
 - **Performance monitoring** through a metrics log and visualizations
 
 ## Files
 
-1. **`pyspark_stream_processor.py`** — Full PySpark **Structured Streaming** application.
+1. **`pyspark_stream_processor.py`** - Full PySpark **Structured Streaming** application.
    Uses streaming checkpoints; on Windows this requires a Hadoop `winutils.exe` setup.
-2. **`pyspark_simple_processor.py`** — Simplified **batch** processor. ⭐
+2. **`pyspark_simple_processor.py`** - Simplified **batch** processor.
    Polls the output directory and processes new files with `spark.read` (no
    streaming checkpoints), so it runs with no extra setup on Windows, macOS and Linux.
-3. **`visualize_metrics.py`** — Renders charts from the metrics log.
+3. **`visualize_metrics.py`** - Renders charts from the metrics log.
 4. **Output directories** (all git-ignored, created at run time):
-   - `spark_checkpoint/` — streaming checkpoint data (stream processor)
-   - `spark_metrics_logs/` — metrics log from the stream processor
-   - `spark_metrics_logs_simple/` — metrics log from the simple processor
-   - `spark_metrics_plots/` — generated visualization PNGs
+   - `spark_checkpoint/` - streaming checkpoint data (stream processor)
+   - `spark_metrics_logs/` - metrics log from the stream processor
+   - `spark_metrics_logs_simple/` - metrics log from the simple processor
+   - `spark_metrics_plots/` - generated visualization PNGs
 
-⭐ **Recommended for a quick start / for Windows:** use `pyspark_simple_processor.py`
+**Recommended for a quick start / for Windows:** use `pyspark_simple_processor.py`
 to avoid Hadoop/`winutils` configuration entirely.
 
 ## Prerequisites
@@ -90,8 +90,8 @@ SLIDE_DURATION  = "5 seconds"     # sliding interval
 TRIGGER_INTERVAL = "2 seconds"    # micro-batch trigger interval
 ```
 
-- **TRIGGER_INTERVAL** — how often Spark checks for new data and processes a micro-batch.
-- **maxFilesPerTrigger** — maximum JSON files processed per batch (default: 10).
+- **TRIGGER_INTERVAL** - how often Spark checks for new data and processes a micro-batch.
+- **maxFilesPerTrigger** - maximum JSON files processed per batch (default: 10).
 
 ### Simple processor (`pyspark_simple_processor.py`)
 
@@ -115,6 +115,39 @@ Both processors write the same line format, so either log can be fed to
 > pipeline. If you point a processor at JSON files that were generated hours or
 > days earlier, the reported latency will reflect that age, not pipeline speed.
 
+## Stateful windowed aggregation
+
+By default the streaming processor logs per-micro-batch metrics. Passing
+`--windowed` instead runs a stateful sliding-window aggregation: detections are
+grouped into event-time windows (`WINDOW_DURATION`, sliding every
+`SLIDE_DURATION`) per product and counted, with a watermark so Spark can bound
+and clean up the streaming state.
+
+```bash
+python -m src.pyspark_stream_processor --windowed
+```
+
+Output is a running table of `window | product_name | detections | avg_confidence`,
+updated each trigger as new detections arrive.
+
+## Benchmark (scalability and latency)
+
+`benchmark.py` measures throughput and per-batch latency of the windowed
+aggregation across batch size, parallelism (`local[N]` cores), and window
+duration. It drains a fixed corpus with `Trigger.AvailableNow` and reads Spark's
+own per-batch progress metrics, running each configuration in its own process so
+the core count is applied cleanly.
+
+```bash
+python -m src.benchmark --sweep
+```
+
+Results are written to `src/benchmark_results/benchmark_results.csv` and rendered
+as charts in the same folder. In testing, batch size was the dominant factor:
+larger batches raised throughput but increased latency, while extra cores and
+longer windows had little effect at this (small) data volume, where the job is
+overhead-bound rather than compute-bound.
+
 ## Fault tolerance via checkpointing (streaming processor only)
 
 > Checkpointing is a feature of **`pyspark_stream_processor.py`** only. The
@@ -122,7 +155,7 @@ Both processors write the same line format, so either log can be fed to
 > restart.
 
 As the streaming processor commits each micro-batch, Spark records its progress
-in `src/spark_checkpoint/` (`offsets/`, `commits/`, and `sources/0/` — which
+in `src/spark_checkpoint/` (`offsets/`, `commits/`, and `sources/0/` - which
 lists exactly which JSON files have already been consumed). If the processor is
 killed and restarted against the same checkpoint directory, it **resumes from
 where it stopped**: it does not reprocess old files and does not lose new ones.
@@ -155,7 +188,7 @@ docker compose run --rm --no-deps processor python -m src.pyspark_stream_process
 
 This was verified end-to-end: run 1 processed 12 files (Batch 0 = 10, Batch 1 =
 2); after a simulated crash and 6 new files, run 2 resumed at **Batch 2** and
-processed exactly **6** detections — the 12 earlier files were not reprocessed.
+processed exactly **6** detections - the 12 earlier files were not reprocessed.
 
 ### Reset the checkpoint
 

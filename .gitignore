@@ -37,6 +37,10 @@ stream_input/
 stream_output*/
 feed_log.csv
 
+# ---- Benchmark temporaries (keep the results CSV + charts, drop the rest) ----
+src/benchmark_results/_corpus/
+src/benchmark_results/_ckpt/
+
 # ---- Spark runtime artifacts ----
 src/spark_checkpoint/
 src/spark_metrics_logs/

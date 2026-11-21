@@ -117,6 +117,25 @@ Running the whole pipeline on a laptop CPU through Docker, PySpark handled the d
 
 ![Average end-to-end latency per batch](src/spark_metrics_plots/avg_latency_seconds.png)
 
+### Scalability and latency
+
+`src/benchmark.py` runs the windowed aggregation over a fixed set of 300 detection records and sweeps three settings: the batch size (how many files Spark takes per trigger), the parallelism (`local[N]` cores, standing in for executors), and the window length. For each run it reads Spark's own per-batch progress numbers, so the throughput and latency come from Spark itself rather than a stopwatch. Run the whole sweep with `python -m src.benchmark --sweep`.
+
+The clearest trade-off is batch size. Larger batches push more rows through per second, but each batch takes longer, so latency climbs:
+
+| Batch size | Throughput (rows/s) | Avg batch latency (ms) |
+|---|---|---|
+| 5 | 32 | 155 |
+| 10 | 57 | 177 |
+| 20 | 89 | 226 |
+| 50 | 109 | 461 |
+
+![Throughput and latency vs batch size](src/benchmark_results/throughput_latency_vs_batch.png)
+
+Adding cores did not help at this data volume. With only a few hundred small records the job spends most of its time on per-batch overhead rather than real computation, so going from 1 to 4 cores actually nudged throughput down a little (about 101 to 89 rows/s) instead of up. Window length had only a small effect too. At this scale batch size is the lever that matters and the pipeline is overhead-bound rather than compute-bound, which would change with a much larger stream.
+
+![Throughput vs parallelism](src/benchmark_results/throughput_vs_cores.png)
+
 ### Fault tolerance
 
 To check that the streaming processor really recovers from a crash, it was stopped partway through after processing 12 detections (batches 0 and 1). Six new detections were then added and the processor was started again. It picked up at batch 2 and processed only those 6 new records, without redoing the first 12 or dropping anything. So the checkpointing does what it is supposed to.
@@ -135,9 +154,10 @@ To check that the streaming processor really recovers from a crash, it was stopp
 - `feed_simulator.py` : Simulates camera/feed input for testing the pipeline.
 - `helper.py` : Utility functions used by the pipeline (IO, formatting, small helpers).
 - `realtime_grozi_pipeline.py` : Main pipeline that wires detection, classification and output streaming.
-- `pyspark_stream_processor.py` : PySpark Structured Streaming processor for the JSON detections.
+- `pyspark_stream_processor.py` : PySpark Structured Streaming processor. Runs per-batch metrics by default, or a stateful sliding-window aggregation with `--windowed`.
 - `pyspark_simple_processor.py` : Simplified cross-platform PySpark batch processor (no Hadoop setup).
 - `visualize_metrics.py` : Renders charts from the processing metrics log.
+- `benchmark.py` : Sweeps batch size, parallelism and window duration and records throughput/latency (`python -m src.benchmark --sweep`).
 - `README_PYSPARK.md` : Documentation for the PySpark processing stage.
 
 ## Future work:

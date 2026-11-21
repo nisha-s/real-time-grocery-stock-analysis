@@ -281,6 +281,56 @@ def create_streaming_query(spark):
         
         raise
 
+def create_windowed_aggregation_query(spark):
+    """
+    Stateful, time-windowed aggregation.
+
+    Groups detections into sliding event-time windows (WINDOW_DURATION, sliding
+    every SLIDE_DURATION) per product and counts them, using a watermark so Spark
+    can bound and clean up the streaming state. This is a true stateful streaming
+    aggregation (as opposed to the per-micro-batch stats in create_streaming_query).
+    """
+    print(f"\n[Windowed] Configuring windowed aggregation query...")
+    print(f"[Windowed] Window: {WINDOW_DURATION}, slide: {SLIDE_DURATION}")
+
+    os.makedirs(JSON_INPUT_DIR, exist_ok=True)
+
+    raw_stream = spark.readStream \
+        .format("json") \
+        .schema(detection_schema) \
+        .option("maxFilesPerTrigger", 10) \
+        .option("multiLine", "true") \
+        .load(JSON_INPUT_DIR)
+
+    parsed_stream = raw_stream \
+        .withColumn("event_time", to_timestamp(col("timestamp"), "yyyy-MM-dd'T'HH:mm:ss")) \
+        .filter((col("confidence") > 0.1) & col("event_time").isNotNull())
+
+    # Stateful sliding-window aggregation per product, bounded by a watermark.
+    windowed_counts = parsed_stream \
+        .withWatermark("event_time", "30 seconds") \
+        .groupBy(
+            window(col("event_time"), WINDOW_DURATION, SLIDE_DURATION),
+            col("product_name"),
+        ) \
+        .agg(
+            count("*").alias("detections"),
+            avg("confidence").alias("avg_confidence"),
+        )
+
+    windowed_checkpoint = os.path.join(CHECKPOINT_DIR, "windowed")
+
+    query = windowed_counts.writeStream \
+        .outputMode("update") \
+        .format("console") \
+        .option("truncate", "false") \
+        .option("checkpointLocation", windowed_checkpoint) \
+        .trigger(processingTime=TRIGGER_INTERVAL) \
+        .start()
+
+    print(f"[Windowed] ✓ Windowed aggregation query started")
+    return query
+
 def print_stream_status(query, interval=10):
     """Periodically print streaming query status"""
     last_progress_time = time.time()
@@ -330,10 +380,16 @@ def main():
         f.write("="*70 + "\n")
     
     print(f"\n[Metrics] Log file: {os.path.abspath(log_file)}")
-    
+
+    # Choose query mode: per-micro-batch metrics (default) or stateful windowed
+    # aggregation (pass --windowed on the command line).
+    windowed_mode = "--windowed" in sys.argv
+    print(f"[Mode] {'Stateful windowed aggregation' if windowed_mode else 'Per-batch metrics'}")
+
     # Create streaming queries
     try:
-        main_query = create_streaming_query(spark)
+        main_query = create_windowed_aggregation_query(spark) if windowed_mode \
+            else create_streaming_query(spark)
     except Exception as e:
         print(f"\n[Error] Failed to start streaming query: {e}")
         spark.stop()
