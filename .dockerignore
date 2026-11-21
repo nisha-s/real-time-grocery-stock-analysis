@@ -1,0 +1,34 @@
+# Keep the build context small. The dataset and runtime outputs are bind-mounted
+# at run time instead of copied into the image.
+.git
+.gitignore
+
+# Dataset (hundreds of MB; mounted at run time)
+inSitu/
+grozi_classification/
+
+# Virtual environments
+venv/
+venv_linux/
+.venv/
+
+# Caches / OS files
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+
+# Runtime output
+stream_input/
+stream_output*/
+feed_log.csv
+src/spark_checkpoint/
+src/spark_metrics_logs/
+src/spark_metrics_logs_simple/
+spark-warehouse/
+temp_hadoop/
+
+# Re-downloadable / exported weights
+yolov8n.pt
+yolov8n-cls.pt
+*.torchscript

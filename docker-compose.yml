@@ -1,0 +1,22 @@
+# Two services sharing the project directory as a bind mount:
+#   - pipeline  : runs YOLO detection, writing JSON to stream_output_json/
+#   - processor : runs the PySpark batch processor over those JSON files
+#
+# The bind mount (.:/app) lets both containers share stream_output_json/ and
+# makes your local inSitu/ dataset and the fine-tuned model available inside
+# the containers. Outputs (JSON, metrics logs, plots) are written back to disk.
+
+services:
+  pipeline:
+    build: .
+    image: grocery-stock-analysis
+    volumes:
+      - .:/app
+    command: python -m src.realtime_grozi_pipeline
+
+  processor:
+    image: grocery-stock-analysis
+    build: .
+    volumes:
+      - .:/app
+    command: python -m src.pyspark_simple_processor

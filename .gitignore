@@ -1,0 +1,47 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# ---- Environments ----
+venv/
+venv_linux/
+.venv/
+env/
+.idea/
+.vscode/
+
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+
+# ---- Dataset (not committed; see README for how to obtain GroZi-120) ----
+inSitu/
+grozi_classification/
+
+# ---- Re-downloadable base model weights (auto-fetched by Ultralytics) ----
+yolov8n.pt
+yolov8n-cls.pt
+
+# ---- Exported model formats (regenerated on export) ----
+*.torchscript
+*.onnx
+
+# ---- Training runs: keep only the final run (grozi_cls_v8n_aug10) ----
+/runs/classify/*
+!/runs/classify/grozi_cls_v8n_aug10/
+
+# ---- Pipeline runtime output (generated at run time) ----
+stream_input/
+stream_output*/
+feed_log.csv
+
+# ---- Spark runtime artifacts ----
+src/spark_checkpoint/
+src/spark_metrics_logs/
+src/spark_metrics_logs_simple/
+spark_checkpoint/
+spark_metrics_logs/
+spark-warehouse/
+temp_hadoop/
